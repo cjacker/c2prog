@@ -54,7 +54,7 @@
 #define C2_EPCTL_WRITE2 0x58
 #define C2_EPCTL_FAST_WRITE 0x78
 
-void C2_init(int pc2d, int pc2ck);
+void C2_init(unsigned int pc2d, unsigned int pc2ck);
 void C2_reset(void);
 void C2_write_ar(uint8_t addr);
 uint8_t C2_read_ar(void);

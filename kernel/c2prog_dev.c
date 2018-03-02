@@ -3,6 +3,7 @@
 
 #include <asm/errno.h>
 #include <asm/uaccess.h>
+#include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -16,20 +17,24 @@ static int device_open(struct inode *, struct file *);
 static int device_release(struct inode *, struct file *);
 static ssize_t device_read(struct file *, char *, size_t, loff_t *);
 static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
+static int chdev_init(void);
 
 static int chdev_major;
 static struct class *chdev_class = NULL;
 static struct device *chdev_dev = NULL;
-static int chdev_open = 0;
 static char *reply;
 static char reply_msg[sizeof(struct message) + 1];
+static int dev_open = 0;
+
+static unsigned int c2ck = 0;
+static unsigned int c2d = 0;
+
+module_param(c2ck, uint, 0);
+MODULE_PARM_DESC(c2ck, "C2CK gpio pin");
+module_param(c2d, uint, 0);
+MODULE_PARM_DESC(c2d, "C2D gpio pin");
 
 static DEFINE_RAW_SPINLOCK(c2prog_lock);
-
-module_param(c2ck, unsigned int, 0);
-MODULE_PARAM_DESC(c2ck, "C2CK gpio pin");
-module_param(c2d, unsigned int, 0);
-MODULE_PARAM_DESC(c2d, "C2D gpio pin");
 
 static int __init c2prog_init(void)
 {
@@ -38,7 +43,7 @@ static int __init c2prog_init(void)
 	// zero the reply message
 	memset(&reply_msg, 0, sizeof(reply_msg));
 
-	return 0;
+	return chdev_init();
 }
 
 static void __exit c2prog_exit(void)
@@ -46,11 +51,11 @@ static void __exit c2prog_exit(void)
 	printk(KERN_INFO "Unregistering c2prog module.\n");
 
 	// unregister the character device
-	device_destroy(chdev_dev, MKDEV(chdev_major, 0));
+	device_destroy(chdev_class, MKDEV(chdev_major, 0));
 	class_unregister(chdev_class);
 	class_destroy(chdev_class);
-	unregister_chdev(chdev_major, DEVICE_NAME);
-	
+	unregister_chrdev(chdev_major, DEVICE_NAME);
+
 	printk(KERN_INFO "c2prog: removing module\n");
 }
 
@@ -64,10 +69,10 @@ static struct file_operations fops = {
     .release = device_release,
 };
 
-static void chdev_init(void)
+static int chdev_init(void)
 {
 	// allocate a major number for the device
-	chdev_major = register_chdev(0, DEVICE_NAME, &fops);
+	chdev_major = register_chrdev(0, DEVICE_NAME, &fops);
 
 	if (chdev_major < 0) {
 		printk(KERN_ERR
@@ -99,20 +104,17 @@ static void chdev_init(void)
 
 static int device_open(struct inode *inode, struct file *file)
 {
-	if (device_open)
+	if (dev_open)
 		return -EBUSY;
 
-	device_open = 1;
-	MOD_INC_USE_COUNT;
+	dev_open = 1;
 
-	return SUCCESS;
+	return 0;
 }
 
 static int device_release(struct inode *inode, struct file *file)
 {
-	device_open--;
-	MOD_DEC_USE_COUNT;
-
+	dev_open--;
 	return 0;
 }
 
@@ -139,10 +141,10 @@ static ssize_t device_read(struct file *file, char *buff, size_t len,
  */
 static void process_c2_op(struct message *msg, struct message *res)
 {
-	int irq_state;
+	unsigned long flags;
 
 	// disable interrupts to meet the maximum reset low period of the EFM8
-	irq_state = raw_spin_lock_irqsave(&c2prog_lock);
+	raw_spin_lock_irqsave(&c2prog_lock, flags);
 
 	switch (msg->op) {
 	case MESSAGE_OP_RESET:
@@ -198,7 +200,7 @@ static void process_c2_op(struct message *msg, struct message *res)
 		break;
 	}
 
-	raw_spin_unlock_irqrestore(&c2prog_lock, irq_state);
+	raw_spin_unlock_irqrestore(&c2prog_lock, flags);
 }
 
 static void process_op(struct message *msg, struct message *res)
@@ -206,7 +208,8 @@ static void process_op(struct message *msg, struct message *res)
 	switch (msg->op) {
 	case MESSAGE_OP_PING:
 		res->op = MESSAGE_OP_PONG;
-		res->data = msg->data;
+		res->data[0] = msg->data[0];
+		res->data[1] = msg->data[1];
 		break;
 
 	default:
@@ -218,16 +221,18 @@ static void process_op(struct message *msg, struct message *res)
 static ssize_t device_write(struct file *file, const char *buff, size_t len,
 			    loff_t *off)
 {
+	struct message *msg, *rmsg;
+
 	if (len != sizeof(struct message))
 		return -EINVAL;
 
-	struct message *msg = (*struct message)buff;
-	struct message *rmsg = &reply_msg;
+	msg = (struct message *)buff;
+	rmsg = (struct message *)&reply_msg;
 
-	process_op(msg, *rmsg);
+	process_op(msg, rmsg);
 
 	// set the reply
-	reply = *rmsg;
+	reply = (char *)rmsg;
 
 	return len;
 }

@@ -1,4 +1,4 @@
-c2prog-objs := c2_interface.o c2prog.mod.o
+c2prog-objs := c2_interface.o c2prog_dev.o
 obj-m += c2prog.o
 
 all:
