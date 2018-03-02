@@ -21,8 +21,9 @@ static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 static int chdev_init(void);
 static void chdev_exit(void);
 static int c2gpio_init(void);
+static void c2gpio_exit(void);
 
-static int chdev_major;
+    static int chdev_major;
 static struct class *chdev_class = NULL;
 static struct device *chdev_dev = NULL;
 static char *reply;
@@ -62,6 +63,8 @@ static int __init c2prog_init(void)
 		return err;
 	}
 
+	C2_init(c2d, c2ck);
+
 	return 0;
 }
 
@@ -71,6 +74,9 @@ static void __exit c2prog_exit(void)
 
 	// unregister the character device
 	chdev_exit();
+
+	// free gpio pins
+	c2gpio_exit();
 
 	printk(KERN_INFO "c2prog: removing module\n");
 }
@@ -278,6 +284,12 @@ static int c2gpio_init(void)
 	}
 
 	return 0;
+}
+
+static void c2gpio_exit(void)
+{
+	gpio_free(c2d);
+	gpio_free(c2ck);
 }
 
 MODULE_LICENSE("GPL");
