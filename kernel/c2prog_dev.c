@@ -5,6 +5,7 @@
 #include <asm/uaccess.h>
 #include <linux/device.h>
 #include <linux/fs.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -18,6 +19,8 @@ static int device_release(struct inode *, struct file *);
 static ssize_t device_read(struct file *, char *, size_t, loff_t *);
 static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 static int chdev_init(void);
+static void chdev_exit(void);
+static int c2gpio_init(void);
 
 static int chdev_major;
 static struct class *chdev_class = NULL;
@@ -38,12 +41,28 @@ static DEFINE_RAW_SPINLOCK(c2prog_lock);
 
 static int __init c2prog_init(void)
 {
+	int err;
 	printk(KERN_INFO "Registering c2prog module.\n");
 
 	// zero the reply message
 	memset(&reply_msg, 0, sizeof(reply_msg));
 
-	return chdev_init();
+	// init char device
+	err = chdev_init();
+	if (err) {
+		printk(KERN_ERR "c2prog: Failed to register chardev\n");
+		return err;
+	}
+
+	// init gpio pins
+	err = c2gpio_init();
+	if (err) {
+		chdev_exit();
+		printk(KERN_ERR "c2prog: Failed to setup gpio pins\n");
+		return err;
+	}
+
+	return 0;
 }
 
 static void __exit c2prog_exit(void)
@@ -51,10 +70,7 @@ static void __exit c2prog_exit(void)
 	printk(KERN_INFO "Unregistering c2prog module.\n");
 
 	// unregister the character device
-	device_destroy(chdev_class, MKDEV(chdev_major, 0));
-	class_unregister(chdev_class);
-	class_destroy(chdev_class);
-	unregister_chrdev(chdev_major, DEVICE_NAME);
+	chdev_exit();
 
 	printk(KERN_INFO "c2prog: removing module\n");
 }
@@ -68,6 +84,14 @@ static struct file_operations fops = {
     .open = device_open,
     .release = device_release,
 };
+
+static void chdev_exit(void)
+{
+	device_destroy(chdev_class, MKDEV(chdev_major, 0));
+	class_unregister(chdev_class);
+	class_destroy(chdev_class);
+	unregister_chrdev(chdev_major, DEVICE_NAME);
+}
 
 static int chdev_init(void)
 {
@@ -235,6 +259,25 @@ static ssize_t device_write(struct file *file, const char *buff, size_t len,
 	reply = (char *)rmsg;
 
 	return len;
+}
+
+static int c2gpio_init(void)
+{
+	int err;
+
+	err = gpio_request(c2d, "C2D");
+	if (err) {
+		printk(KERN_ERR "c2prog: Failed to request C2D gpio pin\n");
+		return err;
+	}
+
+	err = gpio_request(c2ck, "C2CK");
+	if (err) {
+		printk(KERN_ERR "c2prog: Failed to request C2CK gpio pin\n");
+		return err;
+	}
+
+	return 0;
 }
 
 MODULE_LICENSE("GPL");
