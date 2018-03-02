@@ -3,6 +3,7 @@ package programmer
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -70,11 +71,18 @@ func (r *C2Prog) cmd(m *kernelMsg) (*kernelMsg, error) {
 		return nil, err
 	}
 
-	// read reply
+	// HACK: wait for cmd to complete
+	time.Sleep(100 * time.Nanosecond)
+
+	n := 0
 	buf := make([]byte, 3)
-	_, err = r.dev.Read(buf)
-	if err != nil {
-		return nil, err
+	// poll for response
+	for n == 0 {
+		// read reply
+		n, err = r.dev.Read(buf)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return kernelMsgFromBuf(buf), nil

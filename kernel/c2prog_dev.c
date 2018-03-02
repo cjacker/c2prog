@@ -23,7 +23,7 @@ static void chdev_exit(void);
 static int c2gpio_init(void);
 static void c2gpio_exit(void);
 
-    static int chdev_major;
+static int chdev_major;
 static struct class *chdev_class = NULL;
 static struct device *chdev_dev = NULL;
 static char *reply;

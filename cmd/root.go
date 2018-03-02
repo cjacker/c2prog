@@ -19,7 +19,7 @@ var rootCmd = &cobra.Command{
 func start(cmd *cobra.Command, args []string) {
 	p, err := programmer.NewC2Prog()
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to open the stm32 programmer port")
+		logrus.WithError(err).Fatal("Failed to open the programmer port")
 		return
 	}
 

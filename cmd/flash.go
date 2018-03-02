@@ -3,6 +3,7 @@ package cmd
 import (
 	"io/ioutil"
 	"math"
+	"time"
 
 	pb "gopkg.in/cheggaaa/pb.v1"
 
@@ -29,7 +30,7 @@ var flashCmd = &cobra.Command{
 			fw = append(fw, 0xFF)
 		}
 
-		if erase {
+		if !erase {
 			// page size is hard coded here
 			count := uint8(math.Ceil(float64(len(fw)) / 512))
 			for i := uint8(0); i < count; i++ {
@@ -39,6 +40,8 @@ var flashCmd = &cobra.Command{
 				}
 			}
 		}
+
+		time.Sleep(time.Millisecond * 100)
 
 		bar := pb.StartNew(len(fw))
 
@@ -56,11 +59,36 @@ var flashCmd = &cobra.Command{
 		}
 
 		prog.Reset()
+
+		// verify chip
+		initChip()
+
+		bar.Set(0)
+
+		gbuf := []byte{}
+		for i := 0; i < len(fw); i += 128 {
+			buf, err := readBlock(uint16(i), 128)
+			if err != nil {
+				logrus.WithError(err).Fatal("failed to read block")
+			}
+
+			gbuf = append(gbuf, buf...)
+			bar.Add(128)
+		}
+
+		for i := 0; i < len(fw); i++ {
+			if gbuf[i] != fw[i] {
+				logrus.Warnf("Verify failed at position %d, %x != %x", i, gbuf[i], fw[i])
+			}
+		}
+
+		bar.Finish()
+		prog.Reset()
 	},
 }
 
 func init() {
 	flashCmd.Flags().StringVar(&firmware, "fw", "fw.bin", "Firmware file")
-	flashCmd.Flags().BoolVar(&erase, "auto-erase", true, "Auto erase")
+	flashCmd.Flags().BoolVar(&erase, "no-auto-erase", false, "Auto erase")
 	rootCmd.AddCommand(flashCmd)
 }
