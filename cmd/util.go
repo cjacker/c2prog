@@ -234,19 +234,19 @@ func initChip() {
 
 	// init the EFM8SB1 (see AN127)
 	if err := prog.WriteDirect(0xB6, 0x40); err != nil {
-		logrus.WithError(err).Fatal("chip init failed")
+		logrus.WithError(err).Fatal("chip init failed - flash timimg")
 	}
 
 	if err := prog.WriteDirect(0xFF, 0x80); err != nil {
-		logrus.WithError(err).Fatal("chip init failed")
+		logrus.WithError(err).Fatal("chip init failed - vdd mon 1")
 	}
 
 	if err := prog.WriteDirect(0xEF, 0x02); err != nil {
-		logrus.WithError(err).Fatal("chip init failed")
+		logrus.WithError(err).Fatal("chip init failed - vdd mon 2")
 	}
 
 	if err := prog.WriteDirect(0xA9, 0x04); err != nil {
-		logrus.WithError(err).Fatal("chip init failed")
+		logrus.WithError(err).Fatal("chip init failed - osc")
 	}
 
 	<-time.After(time.Millisecond * 50)
