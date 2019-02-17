@@ -274,6 +274,21 @@ func (r *C2Prog) Close() error {
 	return r.dev.Close()
 }
 
+func errToStr(err uint8) string {
+	switch err {
+	case 0x00:
+		return "invalid command"
+	case 0x02:
+		return "command failed"
+	case 0x03:
+		return "flash error"
+	case 0x0B:
+		return "no halt error"
+	}
+
+	return "unknown error"
+}
+
 // WriteDirect allows writes to SFRs on devices that have SFR paging.
 func (r *C2Prog) WriteDirect(addr uint8, data uint8) error {
 	// FPDAT is hard-coded here for EFM8SB1
@@ -296,7 +311,7 @@ func (r *C2Prog) WriteDirect(addr uint8, data uint8) error {
 	}
 
 	if res != 0x0D {
-		return fmt.Errorf("read error: %d", res)
+		return fmt.Errorf("read error: %d (%s)", res, errToStr(res))
 	}
 
 	// WriteCommand(addr)
