@@ -169,11 +169,11 @@ int C2_write_dr(uint8_t dat)
     while (C2D_R == 0 && retry != 0)
     {
         STROBE_C2CK;
-retry--;
+	retry--;
     }
 
     if (retry == 0) {
-return -ETIMEDOUT;
+	return -ETIMEDOUT;
     }
 
     STROBE_C2CK;
@@ -208,11 +208,11 @@ int C2_read_dr(void)
     while (C2D_R == 0 && retry != 0)
     {
         STROBE_C2CK;
-retry--;
+	retry--;
     }
 
     if (retry == 0) {
-return -ETIMEDOUT;
+	return -ETIMEDOUT;
     }
 
     dat = 0;
