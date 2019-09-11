@@ -3,6 +3,9 @@
 
 #include <linux/types.h>
 
+#define C2_MAX_POLL 1000
+#define C2_MAX_STROBE 1000
+
 #define C2_AR_OUTREADY 0x01
 #define C2_AR_INBUSY 0x02
 #define C2_AR_OTPBUSY 0x80
@@ -58,15 +61,15 @@ void C2_init(unsigned int pc2d, unsigned int pc2ck);
 void C2_reset(void);
 void C2_write_ar(uint8_t addr);
 uint8_t C2_read_ar(void);
-void C2_write_dr(uint8_t dat);
-uint8_t C2_read_dr(void);
-void C2_poll(uint8_t flag, uint8_t check);
-void C2_halt(void);
-uint8_t C2_get_dev_id(void);
-uint8_t C2_read_sfr(uint8_t addr);
-void C2_write_sfr(uint8_t addr, uint8_t data);
-void C2_write_cmd(uint8_t cmd);
-uint8_t C2_read_response(void);
-uint8_t C2_read_data(void);
+int C2_write_dr(uint8_t dat);
+int C2_read_dr(void);
+int C2_poll(uint8_t flag, uint8_t check);
+int C2_halt(void);
+int C2_get_dev_id(void);
+int C2_read_sfr(uint8_t addr);
+int C2_write_sfr(uint8_t addr, uint8_t data);
+int C2_write_cmd(uint8_t cmd);
+int C2_read_response(void);
+int C2_read_data(void);
 
 #endif

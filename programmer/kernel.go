@@ -29,6 +29,9 @@ const (
 
 const path = "/dev/c2prog"
 
+// ErrTimeout is returned when a c2 operation times out.
+var ErrTimeout = errors.New("operation timed out, please check connection to chip")
+
 // C2Prog is a C2 programmer implemented on the Raspberry PI GPIO pins.
 type C2Prog struct {
 	dev *os.File
@@ -50,6 +53,7 @@ type kernelMsg struct {
 	op    uint8
 	data  uint8
 	data2 uint8
+	code  int
 }
 
 func (k *kernelMsg) bytes() []byte {
@@ -61,6 +65,7 @@ func kernelMsgFromBuf(buf []byte) *kernelMsg {
 		op:    buf[0],
 		data:  buf[1],
 		data2: buf[2],
+		code:  buf[3],
 	}
 }
 
@@ -85,7 +90,12 @@ func (r *C2Prog) cmd(m *kernelMsg) (*kernelMsg, error) {
 		}
 	}
 
-	return kernelMsgFromBuf(buf), nil
+	msg := kernelMsgFromBuf(buf)
+	if msg.code != 0 {
+		return nil, ErrTimeout
+	}
+
+	return msg, nil
 }
 
 // Check if the programmer responds to commands.

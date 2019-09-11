@@ -129,9 +129,10 @@ uint8_t C2_read_ar(void)
     return addr;
 }
 
-void C2_write_dr(uint8_t dat)
+int C2_write_dr(uint8_t dat)
 {
     uint8_t i;
+    uint32_t retry = C2_MAX_STROBE;
 
     c2ck_output();
     STROBE_C2CK;
@@ -165,18 +166,27 @@ void C2_write_dr(uint8_t dat)
     c2d_input();
     STROBE_C2CK;
 
-    while (C2D_R == 0)
+    while (C2D_R == 0 && retry != 0)
     {
         STROBE_C2CK;
+retry--;
+    }
+
+    if (retry == 0) {
+return -ETIMEDOUT;
     }
 
     STROBE_C2CK;
     c2ck_input();
+
+    return 0;
 }
 
-uint8_t C2_read_dr(void)
+int C2_read_dr(void)
 {
     uint8_t i, dat;
+    uint32_t retry = C2_MAX_STROBE;
+
     c2ck_output();
     STROBE_C2CK;
 
@@ -195,9 +205,14 @@ uint8_t C2_read_dr(void)
 
     STROBE_C2CK;
 
-    while (C2D_R == 0)
+    while (C2D_R == 0 && retry != 0)
     {
         STROBE_C2CK;
+retry--;
+    }
+
+    if (retry == 0) {
+return -ETIMEDOUT;
     }
 
     dat = 0;
@@ -217,11 +232,14 @@ uint8_t C2_read_dr(void)
     return dat;
 }
 
-void C2_poll(uint8_t flag, uint8_t check)
+int C2_poll(uint8_t flag, uint8_t check)
 {
-    while (1)
+    uint32_t retry = C2_MAX_POLL;
+
+    while (retry != 0)
     {
         uint8_t ar = C2_read_ar();
+        retry--;
 
         if (check == 1)
         {
@@ -238,57 +256,98 @@ void C2_poll(uint8_t flag, uint8_t check)
             }
         }
     }
+
+    if (retry == 0) {
+        return -ETIMEDOUT;
+    }
+
+    return 0;
 }
 
-void C2_halt(void)
+int C2_halt(void)
 {
+    int res;
+
     C2_reset();
 
     // standard reset
     C2_write_ar(C2_FPCTL);
-    C2_write_dr(C2_FPCTL_RESET);
+
+    res = C2_write_dr(C2_FPCTL_RESET);
+    if (res != 0)
+        return res;
 
     // core reset
-    C2_write_dr(C2_FPCTL_CORE_RESET);
+    res = C2_write_dr(C2_FPCTL_CORE_RESET);
+    if (res != 0)
+        return res;
 
     // HALT
-    C2_write_dr(C2_FPCTL_HALT);
+    res = C2_write_dr(C2_FPCTL_HALT);
+    if (res != 0)
+        return res;
 
-    //HAL_Delay(20);
+    return 0;
 }
 
-uint8_t C2_get_dev_id(void)
+int C2_get_dev_id(void)
 {
     C2_reset();
     return C2_read_dr();
 }
 
-uint8_t C2_read_sfr(uint8_t addr)
+int C2_read_sfr(uint8_t addr)
 {
     C2_write_ar(addr);
     return C2_read_dr();
 }
 
-void C2_write_sfr(uint8_t addr, uint8_t data)
+int C2_write_sfr(uint8_t addr, uint8_t data)
 {
+    int res;
+
     C2_write_ar(addr);
-    C2_write_dr(data);
+
+    res = C2_write_dr(data);
+    if (res != 0)
+        return res;
+
+    return 0;
 }
 
-void C2_write_cmd(uint8_t cmd)
+int C2_write_cmd(uint8_t cmd)
 {
-    C2_write_dr(cmd);
-    C2_poll(C2_AR_INBUSY, 0);
+    int res;
+
+    res = C2_write_dr(cmd);
+    if (res != 0)
+        return res;
+
+    res = C2_poll(C2_AR_INBUSY, 0);
+    if (res != 0)
+        return res;
+
+    return 0;
 }
 
-uint8_t C2_read_response(void)
+int C2_read_response(void)
 {
-    C2_poll(C2_AR_OUTREADY, 1);
+    int res;
+
+    res = C2_poll(C2_AR_OUTREADY, 1);
+    if (res != 0)
+        return res;
+
     return C2_read_dr();
 }
 
-uint8_t C2_read_data(void)
+int C2_read_data(void)
 {
-    C2_poll(C2_AR_OUTREADY, 1);
+    int res;
+
+    res = C2_poll(C2_AR_OUTREADY, 1);
+    if (res != 0)
+        return res;
+
     return C2_read_dr();
 }

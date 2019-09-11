@@ -24,6 +24,7 @@ enum message_op {
 struct message {
 	uint8_t op;
 	uint8_t data[2];
-};
+	uint8_t code;
+} __attribute__((packed));
 
 #endif

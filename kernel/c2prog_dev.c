@@ -1,8 +1,8 @@
 #include "c2_interface.h"
 #include "messages.h"
 
-#include <asm/errno.h>
-#include <asm/uaccess.h>
+#include <linux/errno.h>
+#include <linux/uaccess.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/gpio.h>
@@ -172,8 +172,10 @@ static ssize_t device_read(struct file *file, char *buff, size_t len,
 static void process_c2_op(struct message *msg, struct message *res)
 {
 	unsigned long flags;
+	int rr = 0;
 
-	// disable interrupts to meet the maximum reset low period of the EFM8
+	// disable interrupts to meet the maximum reset low
+	// period requirements of the C2 protocol
 	raw_spin_lock_irqsave(&c2prog_lock, flags);
 
 	switch (msg->op) {
@@ -190,47 +192,56 @@ static void process_c2_op(struct message *msg, struct message *res)
 		break;
 
 	case MESSAGE_OP_WRITE_DR:
-		C2_write_dr(msg->data[0]);
+		rr = C2_write_dr(msg->data[0]);
 		break;
 
 	case MESSAGE_OP_READ_DR:
-		res->data[0] = C2_read_dr();
+		rr = C2_read_dr();
+		res->data[0] = (uint8_t) rr;
 		break;
 
 	case MESSAGE_OP_POLL:
-		C2_poll(msg->data[0], msg->data[1]);
+		rr = C2_poll(msg->data[0], msg->data[1]);
 		break;
 
 	case MESSAGE_OP_WRITE_SFR:
-		C2_write_sfr(msg->data[0], msg->data[1]);
+		rr = C2_write_sfr(msg->data[0], msg->data[1]);
 		break;
 
 	case MESSAGE_OP_READ_SFR:
-		res->data[0] = C2_read_sfr(msg->data[0]);
+		rr = C2_read_sfr(msg->data[0]);
+		res->data[0] = (uint8_t) rr;
 		break;
 
 	case MESSAGE_OP_WRITE_CMD:
-		C2_write_cmd(msg->data[0]);
+		rr = C2_write_cmd(msg->data[0]);
 		break;
 
 	case MESSAGE_OP_READ_RESPONSE:
-		res->data[0] = C2_read_response();
+		rr = C2_read_response();
+		res->data[0] = (uint8_t) rr;
 		break;
 
 	case MESSAGE_OP_READ_DATA:
-		res->data[0] = C2_read_data();
+		rr = C2_read_data();
+		res->data[0] = (uint8_t) rr;
 		break;
 
 	case MESSAGE_OP_HALT:
-		C2_halt();
+		rr = C2_halt();
 		break;
 
 	case MESSAGE_OP_DEV_ID:
-		res->data[0] = C2_get_dev_id();
+		rr = C2_get_dev_id();
+		res->data[0] = (uint8_t) rr;
 		break;
 	}
 
 	raw_spin_unlock_irqrestore(&c2prog_lock, flags);
+
+	// set the error code if the command failed
+	if (rr < 0)
+	    msg->code = (uint8_t) rr;
 }
 
 static void process_op(struct message *msg, struct message *res)
@@ -296,4 +307,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alexander Müller");
 MODULE_DESCRIPTION(
     "Programmer implementing the C2 protocol for 8051 based CPUs");
-MODULE_VERSION("0.1");
+MODULE_VERSION("0.2");
