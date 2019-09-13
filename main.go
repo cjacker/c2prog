@@ -1,6 +1,6 @@
 package main
 
-import "github.com/donothingloop/c2prog/cmd"
+import "github.com/newtorah/c2prog/cmd"
 
 func main() {
 	cmd.Execute()
