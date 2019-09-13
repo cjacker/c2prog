@@ -227,25 +227,26 @@ func initChip() {
 		"Chip ID": id,
 	}).Info("Found chip")
 
-	if id != 37 {
+	if id != 52 {
 		// For other devices, implement the init procedure (AN127 p. 27) and the flashing procedure.
-		logrus.Fatal("Only EFM8SB1 is currently supported!")
+		logrus.Fatal("Only EFM8LB1 is currently supported!")
 	}
 
 	// init the EFM8SB1 (see AN127)
-	if err := prog.WriteDirect(0xB6, 0x40); err != nil {
+	if err := prog.WriteSFR(0xB6, 0x40); err != nil {
 		logrus.WithError(err).Fatal("chip init failed - flash timimg")
 	}
 
-	if err := prog.WriteDirect(0xFF, 0x80); err != nil {
+	if err := prog.WriteSFR(0xFF, 0x80); err != nil {
 		logrus.WithError(err).Fatal("chip init failed - vdd mon 1")
 	}
-
-	if err := prog.WriteDirect(0xEF, 0x02); err != nil {
+	//delay 5us
+	<-time.After(time.Microsecond * 5)
+	if err := prog.WriteSFR(0xEF, 0x02); err != nil {
 		logrus.WithError(err).Fatal("chip init failed - vdd mon 2")
 	}
 
-	if err := prog.WriteDirect(0xA9, 0x04); err != nil {
+	if err := prog.WriteSFR(0xA9, 0x00); err != nil {
 		logrus.WithError(err).Fatal("chip init failed - osc")
 	}
 
