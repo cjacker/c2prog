@@ -3,6 +3,7 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 
+
 #include "c2_interface.h"
 
 #define C2CK_H gpio_set_value(c2ck, 1)
@@ -14,8 +15,11 @@
 
 #define STROBE_C2CK \
     C2CK_H;         \
-    C2CK_L;         \
-    C2CK_H;
+    ndelay(40);		\
+	C2CK_L;         \
+	ndelay(2500);	\
+    C2CK_H;			\
+	ndelay(120);	
 
 static unsigned int c2d;
 static unsigned int c2ck;
@@ -42,6 +46,8 @@ static void c2ck_output(void)
 
 void C2_init(unsigned int pc2d, unsigned int pc2ck)
 {
+	//printk("init\n");
+
     c2d = pc2d;
     c2ck = pc2ck;
     c2d_input();
@@ -49,19 +55,27 @@ void C2_init(unsigned int pc2d, unsigned int pc2ck)
 
 void C2_reset(void)
 {
+	//printk("reset0\n");
     c2ck_output();
+	//printk("reset1\n");
     C2CK_L;
+	//printk("reset2\n");
     udelay(30);
+	//printk("reset3\n");
     C2CK_H;
+	//printk("reset4\n");
     udelay(10);
+	//printk("reset5\n");
     c2ck_input();
-    mdelay(30);
+	//printk("reset6\n");
+    //mdelay(30);
+	//printk("reset7\n");
 }
 
 void C2_write_ar(uint8_t addr)
 {
     uint8_t i;
-
+	//printk("write_ar\n");
     c2ck_output();
     STROBE_C2CK;
 
@@ -96,7 +110,7 @@ void C2_write_ar(uint8_t addr)
 uint8_t C2_read_ar(void)
 {
     uint8_t i, addr;
-
+	//printk("read_ar\n");
     c2ck_output();
 
     // START field
@@ -132,7 +146,7 @@ uint8_t C2_read_ar(void)
 void C2_write_dr(uint8_t dat)
 {
     uint8_t i;
-
+	//printk("write_dr\n");
     c2ck_output();
     STROBE_C2CK;
 
@@ -176,6 +190,7 @@ void C2_write_dr(uint8_t dat)
 
 uint8_t C2_read_dr(void)
 {
+	//printk("read_dr\n");
     uint8_t i, dat;
     c2ck_output();
     STROBE_C2CK;
@@ -219,6 +234,7 @@ uint8_t C2_read_dr(void)
 
 void C2_poll(uint8_t flag, uint8_t check)
 {
+	//printk("poll\n");
     while (1)
     {
         uint8_t ar = C2_read_ar();
@@ -242,6 +258,7 @@ void C2_poll(uint8_t flag, uint8_t check)
 
 void C2_halt(void)
 {
+	//printk("halt\n");
     C2_reset();
 
     // standard reset
@@ -259,36 +276,42 @@ void C2_halt(void)
 
 uint8_t C2_get_dev_id(void)
 {
+	//printk("get_dev_id\n");
     C2_reset();
     return C2_read_dr();
 }
 
 uint8_t C2_read_sfr(uint8_t addr)
 {
+	//printk("read_sft\n");
     C2_write_ar(addr);
     return C2_read_dr();
 }
 
 void C2_write_sfr(uint8_t addr, uint8_t data)
 {
+	//printk("write_sfr\n");
     C2_write_ar(addr);
     C2_write_dr(data);
 }
 
 void C2_write_cmd(uint8_t cmd)
 {
+	//printk("write_cmd\n");
     C2_write_dr(cmd);
     C2_poll(C2_AR_INBUSY, 0);
 }
 
 uint8_t C2_read_response(void)
 {
+	//printk("read_response\n");
     C2_poll(C2_AR_OUTREADY, 1);
     return C2_read_dr();
 }
 
 uint8_t C2_read_data(void)
 {
+	//printk("read_data\n");
     C2_poll(C2_AR_OUTREADY, 1);
     return C2_read_dr();
 }
