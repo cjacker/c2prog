@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"github.com/Sirupsen/logrus"
-	"github.com/donothingloop/c2prog/programmer"
+	"github.com/newtorah/c2prog/programmer"
 	"github.com/spf13/cobra"
 )
 
